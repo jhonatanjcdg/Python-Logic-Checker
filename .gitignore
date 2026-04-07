@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+
+# VS Code settings
+.vscode/
+
+# npm logs
+npm-debug.log*
+package-lock.json
+
+# Mac / Linux file system
+.DS_Store

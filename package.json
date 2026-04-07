@@ -1,0 +1,48 @@
+{
+  "name": "python-logic-checker",
+  "displayName": "Python Logic Checker",
+  "publisher": "logic-checker-python",
+  "description": "Detección inteligente de errores lógicos en Python mediante IA (Diplomado).",
+  "version": "1.0.1",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LuisPastoDev/python-logic-checker"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Python Logic Checker",
+      "properties": {
+        "pythonLogicChecker.openRouterApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key for OpenRouter (https://openrouter.ai/)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "18.x",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+  }
+}
