@@ -27,6 +27,22 @@
           "type": "string",
           "default": "",
           "description": "API Key for OpenRouter (https://openrouter.ai/)"
+        },
+        "pythonLogicChecker.aiProvider": {
+          "type": "string",
+          "enum": ["Ollama (Local)", "OpenRouter (Cloud)"],
+          "default": "Ollama (Local)",
+          "description": "Selecciona qué proveedor de IA usar para el análisis."
+        },
+        "pythonLogicChecker.ollamaModel": {
+          "type": "string",
+          "default": "phi3",
+          "description": "Nombre del modelo de Ollama que deseas usar (ej. llama3, phi3, qwen:0.5b)."
+        },
+        "pythonLogicChecker.ollamaEndpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "URL base de tu servidor local de Ollama."
         }
       }
     }

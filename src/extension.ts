@@ -42,55 +42,59 @@ async function analyzePythonCode(document: vscode.TextDocument) {
     }
 
     const config = vscode.workspace.getConfiguration('pythonLogicChecker');
-    let apiKey = config.get<string>('openRouterApiKey');
-
-    // Llave de respaldo (fallback) del diplomado para que funcione sin configuración
-    if (!apiKey || apiKey.trim() === "") {
-        apiKey = "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";
-    }
-
-    if (!apiKey) {
-        vscode.window.showWarningMessage('Habilida la extensión "Python Logic Checker" agregando tu API Key de OpenRouter en la configuración si la de defecto no funciona.');
-        return;
-    }
+    const aiProvider = config.get<string>('aiProvider') || 'Ollama (Local)';
 
     try {
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Window,
-            title: "Analizando errores lógicos con OpenRouter...",
-            cancellable: false
-        }, async () => {
-            const result = await fetchDiagnosticsFromOpenRouter(apiKey, code, document);
+        let result: { diagnostics: vscode.Diagnostic[], ranges: vscode.Range[] } = { diagnostics: [], ranges: [] };
+
+        if (aiProvider === 'Ollama (Local)') {
+            const ollamaEndpoint = config.get<string>('ollamaEndpoint') || 'http://localhost:11434';
+            const ollamaModel = config.get<string>('ollamaModel') || 'llama3';
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Window,
+                title: `Analizando errores lógicos con Ollama (${ollamaModel})...`,
+                cancellable: false
+            }, async () => {
+                result = await fetchDiagnosticsFromOllama(ollamaEndpoint, ollamaModel, code, document);
+            });
+        } else {
+            let apiKey = config.get<string>('openRouterApiKey');
             
-            diagnosticCollection.set(document.uri, result.diagnostics);
-            
-            // Aplicar el resaltado verde al editor activo
-            if (activeEditor && activeEditor.document.uri.toString() === document.uri.toString()) {
-                activeEditor.setDecorations(logicErrorDecorationType, result.ranges);
+            // Llave de respaldo (fallback) del diplomado para que funcione sin configuración
+            if (!apiKey || apiKey.trim() === "") {
+                apiKey = "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";
             }
-        });
+
+            if (!apiKey) {
+                vscode.window.showWarningMessage('Habilita la extensión agregando tu API Key de OpenRouter en la configuración si la de defecto no funciona.');
+                return;
+            }
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Window,
+                title: "Analizando errores lógicos con OpenRouter...",
+                cancellable: false
+            }, async () => {
+                result = await fetchDiagnosticsFromOpenRouter(apiKey, code, document);
+            });
+        }
+        
+        diagnosticCollection.set(document.uri, result.diagnostics);
+        
+        // Aplicar el resaltado verde al editor activo
+        if (activeEditor && activeEditor.document.uri.toString() === document.uri.toString()) {
+            activeEditor.setDecorations(logicErrorDecorationType, result.ranges);
+        }
+
     } catch (error) {
         console.error('Error analyzing code:', error);
-        vscode.window.showErrorMessage('Error al conectar con OpenRouter: ' + (error as Error).message);
+        vscode.window.showErrorMessage('Error al conectar con la IA: ' + (error as Error).message);
     }
 }
 
-async function fetchDiagnosticsFromOpenRouter(apiKey: string, code: string, document: vscode.TextDocument): Promise<{ diagnostics: vscode.Diagnostic[], ranges: vscode.Range[] }> {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://github.com/microsoft/vscode",
-            "X-Title": "Python Logic Checker Extension",
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            "model": "google/gemini-2.0-flash-001",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": `
-Actúa como un linter avanzado especializado en detectar errores lógicos o de semántica en código Python (no errores de sintaxis que Python ya captura). 
+function getPrompt(code: string): string {
+    return `Actúa como un linter avanzado especializado en detectar errores lógicos o de semántica en código Python (no errores de sintaxis que Python ya captura). 
 El objetivo es ayudar a estudiantes principiantes. 
 
 Por favor, analiza el siguiente código y dame una lista de errores lógicos. 
@@ -107,25 +111,33 @@ Recuerda que las líneas empiezan en 1.
 Código:
 \`\`\`python
 ${code}
-\`\`\`
-`
-                }
-            ]
-        })
-    });
+\`\`\``;
+}
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
-    }
-
-    const result: any = await response.json();
-    const responseText = result.choices?.[0]?.message?.content || "";
-    
-    let parsedErrors: any[] = [];
+function parseAIResponse(responseText: string, document: vscode.TextDocument): { diagnostics: vscode.Diagnostic[], ranges: vscode.Range[] } {
+    let parsedErrors: any = [];
     try {
-        const cleanedText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-        parsedErrors = JSON.parse(cleanedText);
+        // 1. Intentar extraer solo el contenido dentro de bloques JSON si existen
+        const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/); // Busca un array [ { ... } ]
+        const singleObjectMatch = responseText.match(/\{\s*"line"[\s\S]*\}/); // Busca un objeto solo { "line": ... }
+        
+        let stringToParse = responseText;
+        
+        if (jsonMatch) {
+            stringToParse = jsonMatch[0];
+        } else if (singleObjectMatch) {
+            stringToParse = "[" + singleObjectMatch[0] + "]"; // Lo envolvemos en array si mandó solo uno
+        } else {
+            // Limpieza básica si no hay marcas de bloques
+            stringToParse = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+        }
+
+        parsedErrors = JSON.parse(stringToParse);
+        
+        // Si por alguna razón parseó un objeto en lugar de un array, lo metemos en uno
+        if (parsedErrors && !Array.isArray(parsedErrors)) {
+            parsedErrors = [parsedErrors];
+        }
     } catch (e) {
         console.error("No se pudo parsear el JSON de la respuesta:", responseText);
         return { diagnostics: [], ranges: [] };
@@ -134,7 +146,14 @@ ${code}
     const diagnostics: vscode.Diagnostic[] = [];
     const ranges: vscode.Range[] = [];
 
+    // Verificación final de que sea iterable
+    if (!Array.isArray(parsedErrors)) {
+        return { diagnostics: [], ranges: [] };
+    }
+
     for (const err of parsedErrors) {
+        if (!err.line || !err.message) continue;
+
         const lineIndex = Math.max(0, parseInt(err.line) - 1);
         if (lineIndex >= document.lineCount) continue;
 
@@ -156,6 +175,72 @@ ${code}
     }
 
     return { diagnostics, ranges };
+}
+
+async function fetchDiagnosticsFromOllama(endpoint: string, model: string, code: string, document: vscode.TextDocument): Promise<{ diagnostics: vscode.Diagnostic[], ranges: vscode.Range[] }> {
+    const prompt = getPrompt(code);
+    const cleanEndpoint = endpoint.replace(/\/$/, "");
+
+    const response = await fetch(`${cleanEndpoint}/api/chat`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "stream": false,
+            "format": "json" // Fomenta el uso estricto de JSON si el modelo lo permite
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ollama API error (${response.status}): ${errorText}. Asegúrate de que Ollama está en ejecución.`);
+    }
+
+    const result: any = await response.json();
+    const responseText = result.message?.content || "";
+    
+    return parseAIResponse(responseText, document);
+}
+
+async function fetchDiagnosticsFromOpenRouter(apiKey: string, code: string, document: vscode.TextDocument): Promise<{ diagnostics: vscode.Diagnostic[], ranges: vscode.Range[] }> {
+    const prompt = getPrompt(code);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": "https://github.com/microsoft/vscode",
+            "X-Title": "Python Logic Checker Extension",
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "model": "google/gemini-2.0-flash-001",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
+    }
+
+    const result: any = await response.json();
+    const responseText = result.choices?.[0]?.message?.content || "";
+    
+    return parseAIResponse(responseText, document);
 }
 
 export function deactivate() {
