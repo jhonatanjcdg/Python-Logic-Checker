@@ -30,7 +30,10 @@
         },
         "pythonLogicChecker.aiProvider": {
           "type": "string",
-          "enum": ["Ollama (Local)", "OpenRouter (Cloud)"],
+          "enum": [
+            "Ollama (Local)",
+            "OpenRouter (Cloud)"
+          ],
           "default": "Ollama (Local)",
           "description": "Selecciona qué proveedor de IA usar para el análisis."
         },
@@ -55,10 +58,11 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.90.0",
     "@types/node": "18.x",
+    "@types/vscode": "^1.90.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
 import { logicErrorDecorationType } from './styles/decorations';
 import { fetchDiagnosticsFromOllama } from './providers/ollamaProvider';
 import { fetchDiagnosticsFromOpenRouter } from './providers/openRouterProvider';
@@ -6,6 +8,9 @@ import { fetchDiagnosticsFromOpenRouter } from './providers/openRouterProvider';
 let diagnosticCollection: vscode.DiagnosticCollection;
 
 export function activate(context: vscode.ExtensionContext) {
+    // Cargar variables de entorno desde el archivo .env en la raíz de la extensión
+    dotenv.config({ path: path.join(context.extensionPath, '.env') });
+    
     console.log('Python Logic Checker está activa.');
 
     diagnosticCollection = vscode.languages.createDiagnosticCollection('pythonLogicChecker');
@@ -55,7 +60,11 @@ async function analyzePythonCode(document: vscode.TextDocument) {
         } else {
             let apiKey = config.get<string>('openRouterApiKey');
             
-            // Llave de respaldo (fallback) del diplomado para que funcione sin configuración
+            // Prioridad: 1. Ajustes de VS Code, 2. Variable de entorno (.env), 3. Llave de respaldo
+            if (!apiKey || apiKey.trim() === "") {
+                apiKey = process.env.OPENROUTER_API_KEY;
+            }
+
             if (!apiKey || apiKey.trim() === "") {
                 apiKey = "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";
             }
