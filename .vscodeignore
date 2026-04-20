@@ -6,10 +6,12 @@ src/**
 .vscodeignore
 tsconfig.json
 vsc-extension-quickstart.md
-README.md
 CHANGELOG.md
 node_modules/**
 **/*.ts
 **/*.map
 **/*.js.map
 !out/**/*.js
+.env
+.env.example
+*.py
