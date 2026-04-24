@@ -4,7 +4,14 @@ export function getPrompt(code: string): string {
     return `Actúa como un linter avanzado especializado en detectar errores lógicos o de semántica en código Python (no errores de sintaxis que Python ya captura). 
 El objetivo es ayudar a estudiantes principiantes. 
 
-Por favor, analiza el siguiente código y dame una lista de errores lógicos. 
+ENFÓCATE ESPECIALMENTE EN:
+1. Variables que se reasignan (=) dentro de bucles cuando deberían acumularse (+=, -=, *=, etc.)
+2. Variables con diferente capitalización que se usan como si fueran la misma
+3. Condiciones lógicas invertidas (if x > 5 cuando debería ser x < 5)
+4. Índices y rangos incorrectos que pueden causar resultados inesperados
+5. Inicializaciones de variables que podrían causar lógica incorrecta
+
+Analiza el siguiente código y dame una lista de errores lógicos. 
 Devuelve la respuesta ESTRICTAMENTE en formato JSON plano usando la siguiente estructura:
 [
   {
@@ -61,8 +68,11 @@ export function parseAIResponse(responseText: string, document: vscode.TextDocum
         if (lineIndex >= document.lineCount) continue;
 
         const lineText = document.lineAt(lineIndex);
+        const text = lineText.text;
+        
+        // Resaltar toda la línea desde el primer carácter no blanco hasta el final
         const startChar = lineText.firstNonWhitespaceCharacterIndex;
-        const endChar = lineText.text.length;
+        const endChar = text.length;
 
         const range = new vscode.Range(lineIndex, startChar, lineIndex, endChar);
         
