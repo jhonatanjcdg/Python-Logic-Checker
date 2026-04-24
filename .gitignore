@@ -13,3 +13,6 @@ package-lock.json
 
 # Mac / Linux file system
 .DS_Store
+
+# Environment variables
+.env
