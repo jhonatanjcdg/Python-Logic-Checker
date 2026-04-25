@@ -1,16 +1,16 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { logicErrorDecorationType } from './styles/decorations';
+import * as path from 'path';
+import * as vscode from 'vscode';
 import { fetchDiagnosticsFromOllama } from './providers/ollamaProvider';
 import { fetchDiagnosticsFromOpenRouter } from './providers/openRouterProvider';
+import { logicErrorDecorationType } from './styles/decorations';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 
 export function activate(context: vscode.ExtensionContext) {
     // Cargar variables de entorno desde el archivo .env en la raíz de la extensión
     dotenv.config({ path: path.join(context.extensionPath, '.env') });
-    
+
     console.log('Python Logic Checker está activa.');
 
     diagnosticCollection = vscode.languages.createDiagnosticCollection('pythonLogicChecker');
@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function analyzePythonCode(document: vscode.TextDocument) {
     const code = document.getText();
-    
+
     // Limpiar diagnósticos y decoraciones previas
     diagnosticCollection.clear();
     const activeEditor = vscode.window.activeTextEditor;
@@ -58,19 +58,10 @@ async function analyzePythonCode(document: vscode.TextDocument) {
                 result = await fetchDiagnosticsFromOllama(ollamaEndpoint, ollamaModel, code, document);
             });
         } else {
-            let apiKey = config.get<string>('openRouterApiKey');
+            const apiKey = config.get<string>('openRouterApiKey');
             
-            // Prioridad: 1. Ajustes de VS Code, 2. Variable de entorno (.env), 3. Llave de respaldo
             if (!apiKey || apiKey.trim() === "") {
-                apiKey = process.env.OPENROUTER_API_KEY;
-            }
-
-            if (!apiKey || apiKey.trim() === "") {
-                apiKey = "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";
-            }
-
-            if (!apiKey) {
-                vscode.window.showWarningMessage('Habilita la extensión agregando tu API Key de OpenRouter en la configuración si la de defecto no funciona.');
+                vscode.window.showWarningMessage('Por favor, configura tu API Key de OpenRouter en los ajustes de VS Code para usar la IA en la nube.');
                 return;
             }
 
@@ -82,9 +73,9 @@ async function analyzePythonCode(document: vscode.TextDocument) {
                 result = await fetchDiagnosticsFromOpenRouter(apiKey, code, document);
             });
         }
-        
+
         diagnosticCollection.set(document.uri, result.diagnostics);
-        
+
         // Aplicar el resaltado verde al editor activo
         if (activeEditor && activeEditor.document.uri.toString() === document.uri.toString()) {
             activeEditor.setDecorations(logicErrorDecorationType, result.ranges);

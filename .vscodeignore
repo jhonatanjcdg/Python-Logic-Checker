@@ -1,6 +1,6 @@
 .vscode/**
 .vscode-test/**
-out/test/**
+out/**
 src/**
 .gitignore
 .vscodeignore
@@ -11,7 +11,7 @@ node_modules/**
 **/*.ts
 **/*.map
 **/*.js.map
-!out/**/*.js
+!dist/extension.js
 .env
 .env.example
 *.py
