@@ -18,12 +18,8 @@
    ```
 3. **Clona el repositorio**:
    ```bash
-   git clone https://github.com/tu-usuario/Python-Logic-Checker.git
+   git clone https://github.com/jhonatanjcdg/Python-Logic-Checker.git
    cd Python-Logic-Checker
-   ```
-4. **Cambiar a la rama Ollama** (rama de desarrollo con Ollama local):
-   ```bash
-   git checkout ollama
    ```
 
 ### 1. Instalar Dependencias 📦

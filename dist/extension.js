@@ -356,24 +356,12 @@ __export(extension_exports, {
   deactivate: () => deactivate
 });
 module.exports = __toCommonJS(extension_exports);
-var vscode3 = __toESM(require("vscode"));
-var path = __toESM(require("path"));
 var dotenv = __toESM(require_main());
-
-// src/styles/decorations.ts
-var vscode = __toESM(require("vscode"));
-var logicErrorDecorationType = vscode.window.createTextEditorDecorationType({
-  backgroundColor: "rgba(76, 175, 80, 0.15)",
-  // Fondo verde suave
-  border: "1px solid #4CAF50",
-  // Borde verde esmeralda
-  borderRadius: "3px",
-  overviewRulerColor: "rgba(76, 175, 80, 0.8)",
-  overviewRulerLane: vscode.OverviewRulerLane.Right
-});
+var path = __toESM(require("path"));
+var vscode3 = __toESM(require("vscode"));
 
 // src/utils/parser.ts
-var vscode2 = __toESM(require("vscode"));
+var vscode = __toESM(require("vscode"));
 function getPrompt(code) {
   return `Act\xFAa como un linter avanzado especializado en detectar errores l\xF3gicos o de sem\xE1ntica en c\xF3digo Python (no errores de sintaxis que Python ya captura). 
 El objetivo es ayudar a estudiantes principiantes. 
@@ -435,11 +423,11 @@ function parseAIResponse(responseText, document) {
     const text = lineText.text;
     const startChar = lineText.firstNonWhitespaceCharacterIndex;
     const endChar = text.length;
-    const range = new vscode2.Range(lineIndex, startChar, lineIndex, endChar);
-    const diagnostic = new vscode2.Diagnostic(
+    const range = new vscode.Range(lineIndex, startChar, lineIndex, endChar);
+    const diagnostic = new vscode.Diagnostic(
       range,
       err.message,
-      vscode2.DiagnosticSeverity.Information
+      vscode.DiagnosticSeverity.Information
     );
     diagnostic.source = "Python Logic Checker";
     diagnostics.push(diagnostic);
@@ -508,6 +496,18 @@ async function fetchDiagnosticsFromOpenRouter(apiKey, code, document) {
   return parseAIResponse(responseText, document);
 }
 
+// src/styles/decorations.ts
+var vscode2 = __toESM(require("vscode"));
+var logicErrorDecorationType = vscode2.window.createTextEditorDecorationType({
+  backgroundColor: "rgba(76, 175, 80, 0.15)",
+  // Fondo verde suave
+  border: "1px solid #4CAF50",
+  // Borde verde esmeralda
+  borderRadius: "3px",
+  overviewRulerColor: "rgba(76, 175, 80, 0.8)",
+  overviewRulerLane: vscode2.OverviewRulerLane.Right
+});
+
 // src/extension.ts
 var diagnosticCollection;
 function activate(context) {
@@ -547,15 +547,9 @@ async function analyzePythonCode(document) {
         result = await fetchDiagnosticsFromOllama(ollamaEndpoint, ollamaModel, code, document);
       });
     } else {
-      let apiKey = config2.get("openRouterApiKey");
+      const apiKey = config2.get("openRouterApiKey");
       if (!apiKey || apiKey.trim() === "") {
-        apiKey = process.env.OPENROUTER_API_KEY;
-      }
-      if (!apiKey || apiKey.trim() === "") {
-        apiKey = "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";
-      }
-      if (!apiKey) {
-        vscode3.window.showWarningMessage("Habilita la extensi\xF3n agregando tu API Key de OpenRouter en la configuraci\xF3n si la de defecto no funciona.");
+        vscode3.window.showWarningMessage("Por favor, configura tu API Key de OpenRouter en los ajustes de VS Code para usar la IA en la nube.");
         return;
       }
       await vscode3.window.withProgress({
